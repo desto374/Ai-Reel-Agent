@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Flask, redirect, render_template_string, request, url_for
+from flask import Flask, jsonify, render_template_string, request
 from dotenv import load_dotenv
 
 from config.settings import get_settings
@@ -63,6 +63,70 @@ HTML = """
         border: none;
         cursor: pointer;
       }
+      button:disabled {
+        cursor: wait;
+        opacity: .65;
+      }
+      .dropzone {
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 28px;
+        background: rgba(255,255,255,.65);
+        text-align: center;
+        transition: border-color .2s ease, transform .2s ease, background .2s ease;
+      }
+      .dropzone.dragover {
+        border-color: var(--accent);
+        background: rgba(187,77,0,.06);
+        transform: scale(1.01);
+      }
+      .hidden-input {
+        display: none;
+      }
+      .browse-link {
+        color: var(--accent);
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .file-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .file-pill {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: .95rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .status {
+        margin-top: 20px;
+        display: none;
+      }
+      .progress {
+        width: 100%;
+        height: 12px;
+        background: #eadfce;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #bb4d00, #e47b2c);
+        transition: width .15s ease;
+      }
+      .status-text {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: .95rem;
+      }
       .error {
         color: #8b1e1e;
         margin-bottom: 16px;
@@ -79,48 +143,191 @@ HTML = """
         border: 1px solid var(--border);
         border-radius: 12px;
       }
+      .job {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
       code { background: #f5eadb; padding: 2px 6px; border-radius: 6px; }
+      @media (max-width: 760px) {
+        .wrap { margin: 20px auto; padding: 16px; }
+        .card { padding: 20px; }
+        .grid { grid-template-columns: 1fr; }
+        h1 { font-size: 2rem; }
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
       <div class="card">
         <h1>AI Reels Generator</h1>
-        <p>Upload a long-form <code>.mp4</code> or <code>.mov</code> video. The pipeline will transcribe it, pick strong moments, render vertical clips, burn captions, and optionally upload the exports to Google Drive.</p>
-        {% if error %}
-          <div class="error">{{ error }}</div>
-        {% endif %}
-        <form method="post" enctype="multipart/form-data">
-          <div>
-            <label for="video">Video file</label><br>
-            <input id="video" type="file" name="video" accept=".mp4,.mov" required>
+        <p>Drop one or more long-form <code>.mp4</code> or <code>.mov</code> videos here. The pipeline will transcribe them, pick strong moments, render vertical clips, burn captions, and upload exports to Google Drive when configured.</p>
+        <div id="errorBox" class="error" style="display:none;"></div>
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+          <div class="dropzone" id="dropzone">
+            <input id="videos" class="hidden-input" type="file" name="videos" accept=".mp4,.mov" multiple required>
+            <strong>Drag and drop videos here</strong>
+            <p>or <span class="browse-link" id="browseLink">browse from your computer</span></p>
+            <p>Supported formats: <code>.mp4</code>, <code>.mov</code></p>
+            <div id="fileList" class="file-list"></div>
           </div>
-          <div>
-            <label for="output_count">How many clips</label><br>
-            <input id="output_count" type="number" name="output_count" min="1" max="10" value="5">
+          <div class="grid">
+            <div>
+              <label for="output_count">How many clips per video</label><br>
+              <input id="output_count" type="number" name="output_count" min="1" max="10" value="5">
+            </div>
+            <div>
+              <label for="upload_to_drive">Delivery</label><br>
+              <select id="upload_to_drive" name="upload_to_drive">
+                <option value="true">Upload to Google Drive</option>
+                <option value="false">Save locally only</option>
+              </select>
+            </div>
           </div>
-          <button type="submit">Generate Reels</button>
+          <button id="submitButton" type="submit">Generate Reels</button>
         </form>
-        {% if result %}
-          <div class="result">
-            <p><strong>Transcript:</strong> {{ result.transcript_path }}</p>
-            <p><strong>Manifest:</strong> {{ result.manifest_path }}</p>
-            {% for clip in result.clips %}
-              <div class="clip">
-                <strong>{{ clip.title }}</strong><br>
-                Source: {{ clip.source_start }}s to {{ clip.source_end }}s<br>
-                Captioned file: {{ clip.captioned_path }}<br>
-                {% if clip.drive_link %}
-                  Drive: <a href="{{ clip.drive_link }}" target="_blank" rel="noreferrer">open</a>
-                {% else %}
-                  Drive: not uploaded
-                {% endif %}
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <div id="statusBox" class="status">
+          <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+          <div id="statusText" class="status-text">Uploading...</div>
+        </div>
+        <div id="results" class="result" style="display:none;"></div>
       </div>
     </div>
+    <script>
+      const form = document.getElementById('uploadForm');
+      const input = document.getElementById('videos');
+      const dropzone = document.getElementById('dropzone');
+      const browseLink = document.getElementById('browseLink');
+      const fileList = document.getElementById('fileList');
+      const errorBox = document.getElementById('errorBox');
+      const results = document.getElementById('results');
+      const statusBox = document.getElementById('statusBox');
+      const statusText = document.getElementById('statusText');
+      const progressBar = document.getElementById('progressBar');
+      const submitButton = document.getElementById('submitButton');
+
+      browseLink.addEventListener('click', () => input.click());
+      input.addEventListener('change', renderFiles);
+
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.remove('dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (event) => {
+        input.files = event.dataTransfer.files;
+        renderFiles();
+      });
+
+      function renderFiles() {
+        fileList.innerHTML = '';
+        Array.from(input.files || []).forEach((file) => {
+          const item = document.createElement('div');
+          item.className = 'file-pill';
+          item.textContent = `${file.name} (${Math.round(file.size / 1024 / 1024 * 10) / 10} MB)`;
+          fileList.appendChild(item);
+        });
+      }
+
+      function showError(message) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = message;
+      }
+
+      function clearError() {
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+      }
+
+      function renderResults(payload) {
+        results.style.display = 'block';
+        results.innerHTML = '';
+        const jobs = payload.results || [];
+        jobs.forEach((job) => {
+          const section = document.createElement('div');
+          section.className = 'job';
+          section.innerHTML = `
+            <p><strong>Video:</strong> ${job.source_video}</p>
+            <p><strong>Transcript:</strong> ${job.transcript_path}</p>
+            <p><strong>Manifest:</strong> ${job.manifest_path}</p>
+          `;
+          (job.clips || []).forEach((clip) => {
+            const item = document.createElement('div');
+            item.className = 'clip';
+            item.innerHTML = `
+              <strong>${clip.title}</strong><br>
+              Source: ${clip.source_start}s to ${clip.source_end}s<br>
+              Captioned file: ${clip.captioned_path}<br>
+              ${clip.drive_link ? `Drive: <a href="${clip.drive_link}" target="_blank" rel="noreferrer">open</a>` : 'Drive: not uploaded'}
+            `;
+            section.appendChild(item);
+          });
+          results.appendChild(section);
+        });
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        clearError();
+        results.style.display = 'none';
+        if (!input.files || !input.files.length) {
+          showError('Choose at least one .mp4 or .mov file.');
+          return;
+        }
+
+        const formData = new FormData(form);
+        statusBox.style.display = 'block';
+        statusText.textContent = 'Uploading videos...';
+        progressBar.style.width = '0%';
+        submitButton.disabled = true;
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/');
+
+        xhr.upload.addEventListener('progress', (event) => {
+          if (!event.lengthComputable) return;
+          const percent = Math.round((event.loaded / event.total) * 100);
+          progressBar.style.width = `${percent}%`;
+          statusText.textContent = `Uploading... ${percent}%`;
+        });
+
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState !== XMLHttpRequest.DONE) return;
+          submitButton.disabled = false;
+          progressBar.style.width = '100%';
+          statusText.textContent = 'Processing complete.';
+          try {
+            const payload = JSON.parse(xhr.responseText);
+            if (xhr.status >= 400) {
+              showError(payload.error || 'Upload failed.');
+              return;
+            }
+            renderResults(payload);
+          } catch (_error) {
+            showError('The server returned an unexpected response.');
+          }
+        };
+
+        xhr.onerror = () => {
+          submitButton.disabled = false;
+          showError('Network error while uploading files.');
+        };
+
+        xhr.send(formData);
+        setTimeout(() => {
+          statusText.textContent = 'Upload finished. Processing videos, captions, and exports...';
+        }, 1200);
+      });
+    </script>
   </body>
 </html>
 """
@@ -131,20 +338,26 @@ def index():
     settings = get_settings()
     settings.ensure_directories()
     if request.method == "POST":
-        upload = request.files.get("video")
-        if not upload or not upload.filename:
-            return render_template_string(HTML, error="Choose an .mp4 or .mov file.", result=None)
+        uploads = [item for item in request.files.getlist("videos") if item and item.filename]
+        if not uploads:
+            return jsonify({"error": "Choose at least one .mp4 or .mov file."}), 400
         try:
-            saved_video = save_uploaded_video(upload, settings.uploads_dir)
-            result = run_pipeline(
-                video_path=saved_video,
-                settings=settings,
-                output_count=int(request.form.get("output_count", "5")),
-            )
-            return render_template_string(HTML, result=result.model_dump(), error=None)
+            results = []
+            output_count = int(request.form.get("output_count", "5"))
+            upload_to_drive = request.form.get("upload_to_drive", "true").lower() == "true"
+            for upload in uploads:
+                saved_video = save_uploaded_video(upload, settings.uploads_dir)
+                result = run_pipeline(
+                    video_path=saved_video,
+                    settings=settings,
+                    output_count=output_count,
+                    upload_to_drive=upload_to_drive,
+                )
+                results.append(result.model_dump())
+            return jsonify({"results": results}), 200
         except Exception as exc:
-            return render_template_string(HTML, error=str(exc), result=None)
-    return render_template_string(HTML, error=None, result=None)
+            return jsonify({"error": str(exc)}), 500
+    return render_template_string(HTML)
 
 
 if __name__ == "__main__":
