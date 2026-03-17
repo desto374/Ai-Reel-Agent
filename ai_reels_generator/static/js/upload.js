@@ -1,11 +1,61 @@
 import { pollJobs } from "./jobs.js";
-import { clearError, renderFiles, setIdleState, setStatus, showError } from "./ui.js";
+import {
+  clearError,
+  clearWarning,
+  renderFiles,
+  setIdleState,
+  setStatus,
+  showError,
+  showWarning,
+} from "./ui.js";
+
+const WARNING_FILE_SIZE_BYTES = 200 * 1024 * 1024;
+const WARNING_TOTAL_SIZE_BYTES = 500 * 1024 * 1024;
+
+function formatFileSize(bytes) {
+  return `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`;
+}
+
+function updateLargeFileWarning(warningBox, files) {
+  const selectedFiles = Array.from(files || []);
+  if (!selectedFiles.length) {
+    clearWarning(warningBox);
+    return;
+  }
+
+  const largeFiles = selectedFiles.filter((file) => file.size >= WARNING_FILE_SIZE_BYTES);
+  const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+
+  if (!largeFiles.length && totalBytes < WARNING_TOTAL_SIZE_BYTES) {
+    clearWarning(warningBox);
+    return;
+  }
+
+  const fileSummary = largeFiles.length
+    ? `Large files detected: ${largeFiles
+        .slice(0, 3)
+        .map((file) => `${file.name} (${formatFileSize(file.size)})`)
+        .join(", ")}. `
+    : "";
+
+  const totalSummary = totalBytes >= WARNING_TOTAL_SIZE_BYTES
+    ? `Total upload size is ${formatFileSize(totalBytes)}. `
+    : "";
+
+  showWarning(
+    warningBox,
+    `${fileSummary}${totalSummary}Bigger uploads take longer to compress, split, transcribe, and render. Keep this tab open until the job cards finish updating.`,
+  );
+}
 
 export function bindUploadFlow(elements, state) {
-  const { browseLink, input, dropzone, form } = elements;
+  const { browseLink, input, dropzone, form, warningBox } = elements;
 
   browseLink.addEventListener("click", () => input.click());
-  input.addEventListener("change", () => renderFiles(elements.fileList, input.files));
+  input.addEventListener("change", () => {
+    renderFiles(elements.fileList, input.files);
+    updateLargeFileWarning(warningBox, input.files);
+  });
 
   ["dragenter", "dragover"].forEach((eventName) => {
     dropzone.addEventListener(eventName, (event) => {
@@ -24,6 +74,7 @@ export function bindUploadFlow(elements, state) {
   dropzone.addEventListener("drop", (event) => {
     input.files = event.dataTransfer.files;
     renderFiles(elements.fileList, input.files);
+    updateLargeFileWarning(warningBox, input.files);
   });
 
   dropzone.addEventListener("keydown", (event) => {
@@ -36,6 +87,7 @@ export function bindUploadFlow(elements, state) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     clearError(elements.errorBox);
+    updateLargeFileWarning(warningBox, input.files);
     elements.results.hidden = true;
     elements.results.innerHTML = "";
 

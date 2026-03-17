@@ -8,6 +8,16 @@ export function clearError(errorBox) {
   errorBox.textContent = "";
 }
 
+export function showWarning(warningBox, message) {
+  warningBox.hidden = false;
+  warningBox.textContent = message;
+}
+
+export function clearWarning(warningBox) {
+  warningBox.hidden = true;
+  warningBox.textContent = "";
+}
+
 export function setStatus(statusBox, statusText, progressBar, message, progress) {
   statusBox.hidden = false;
   statusText.textContent = message;

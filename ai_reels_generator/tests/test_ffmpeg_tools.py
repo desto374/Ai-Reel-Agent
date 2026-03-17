@@ -1,6 +1,14 @@
 from unittest.mock import patch
 
-from tools.ffmpeg_tools import burn_subtitles, cut_clip, extract_audio, to_vertical
+from tools.ffmpeg_tools import (
+    burn_subtitles,
+    cut_clip,
+    estimate_chunk_count,
+    extract_audio,
+    prepare_transcription_audio,
+    split_audio_chunks,
+    to_vertical,
+)
 
 
 @patch("tools.ffmpeg_tools.ensure_ffmpeg", return_value="ffmpeg")
@@ -79,3 +87,53 @@ def test_burn_subtitles_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
             "captioned.mp4",
         ]
     )
+
+
+@patch("tools.ffmpeg_tools.ensure_ffmpeg", return_value="ffmpeg")
+@patch("tools.ffmpeg_tools.run_cmd")
+def test_prepare_transcription_audio_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
+    result = prepare_transcription_audio("audio.wav", "audio.mp3")
+    assert result == "audio.mp3"
+    mock_run_cmd.assert_called_once_with(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            "audio.wav",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-b:a",
+            "32k",
+            "audio.mp3",
+        ]
+    )
+
+
+@patch("tools.ffmpeg_tools.ensure_ffmpeg", return_value="ffmpeg")
+@patch("tools.ffmpeg_tools.run_cmd")
+def test_split_audio_chunks_builds_expected_command(mock_run_cmd, _mock_ffmpeg, tmp_path):
+    result = split_audio_chunks("audio.mp3", str(tmp_path), chunk_seconds=480)
+    assert result == []
+    mock_run_cmd.assert_called_once_with(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            "audio.mp3",
+            "-f",
+            "segment",
+            "-segment_time",
+            "480",
+            "-reset_timestamps",
+            "1",
+            "-c",
+            "copy",
+            str(tmp_path / "chunk_%03d.mp3"),
+        ]
+    )
+
+
+def test_estimate_chunk_count_rounds_up():
+    assert estimate_chunk_count(25, 10) == 3

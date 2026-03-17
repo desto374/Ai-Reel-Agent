@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import shutil
 import subprocess
 from pathlib import Path
@@ -37,6 +38,55 @@ def extract_audio(video_path: str, audio_path: str) -> str:
         ]
     )
     return audio_path
+
+
+def prepare_transcription_audio(input_audio_path: str, output_audio_path: str) -> str:
+    ffmpeg = ensure_ffmpeg()
+    run_cmd(
+        [
+            ffmpeg,
+            "-y",
+            "-i",
+            input_audio_path,
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-b:a",
+            "32k",
+            output_audio_path,
+        ]
+    )
+    return output_audio_path
+
+
+def split_audio_chunks(input_audio_path: str, output_dir: str, chunk_seconds: int = 480) -> list[str]:
+    ffmpeg = ensure_ffmpeg()
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    pattern = output_path / "chunk_%03d.mp3"
+    run_cmd(
+        [
+            ffmpeg,
+            "-y",
+            "-i",
+            input_audio_path,
+            "-f",
+            "segment",
+            "-segment_time",
+            str(chunk_seconds),
+            "-reset_timestamps",
+            "1",
+            "-c",
+            "copy",
+            str(pattern),
+        ]
+    )
+    return [str(path) for path in sorted(output_path.glob("chunk_*.mp3"))]
+
+
+def estimate_chunk_count(file_size_bytes: int, max_chunk_bytes: int) -> int:
+    return max(1, math.ceil(file_size_bytes / max_chunk_bytes))
 
 
 def cut_clip(video_path: str, start: float, end: float, output_path: str) -> str:

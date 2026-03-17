@@ -251,6 +251,12 @@ code {
   background: rgba(199, 52, 37, 0.08);
 }
 
+.alert-warning {
+  color: #7c3d16;
+  border: 1px solid rgba(204, 90, 31, 0.2);
+  background: rgba(204, 90, 31, 0.1);
+}
+
 .upload-form {
   display: grid;
   gap: 18px;
