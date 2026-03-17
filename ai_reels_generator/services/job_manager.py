@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import uuid
 from pathlib import Path
+from typing import Any
 
 from config.settings import Settings
 from models.schemas import JobItem
@@ -54,17 +55,17 @@ def _run_job(
     try:
         from services.pipeline import run_pipeline
 
-        _update_job(job_id, status="running", stage="extracting audio", progress=10)
-        _update_job(job_id, stage="transcribing", progress=30)
-        _update_job(job_id, stage="selecting clips", progress=50)
-        _update_job(job_id, stage="rendering vertical clips", progress=70)
-        _update_job(job_id, stage="exporting results", progress=90)
+        def on_progress(stage: str, progress: int, **extra: Any) -> None:
+            _update_job(job_id, status="running", stage=stage, progress=progress, **extra)
+
+        _update_job(job_id, status="running", stage="queued", progress=0)
         result = run_pipeline(
             video_path=video_path,
             settings=settings,
             output_count=output_count,
             upload_to_drive=upload_to_drive,
+            progress_callback=on_progress,
         )
         _update_job(job_id, status="completed", stage="completed", progress=100, result=result)
     except Exception as exc:
-        _update_job(job_id, status="failed", stage="failed", error=str(exc))
+        _update_job(job_id, status="failed", stage="failed", error=str(exc), progress=100)

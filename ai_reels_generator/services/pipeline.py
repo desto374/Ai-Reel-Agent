@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Callable
 
 from openai import OpenAI
 
@@ -17,6 +18,7 @@ from tools.whisper_tools import transcribe_audio
 
 
 ALLOWED_EXTENSIONS = {".mp4", ".mov"}
+ProgressCallback = Callable[[str, int], None]
 
 
 def is_allowed_video(filename: str) -> bool:
@@ -40,7 +42,12 @@ def run_pipeline(
     clip_length_min: int = 20,
     clip_length_max: int = 60,
     upload_to_drive: bool = True,
+    progress_callback: ProgressCallback | None = None,
 ) -> PipelineRunResult:
+    def emit_progress(stage: str, progress: int) -> None:
+        if progress_callback:
+            progress_callback(stage, progress)
+
     source_video = Path(video_path).resolve()
     if not source_video.exists():
         raise FileNotFoundError(f"Source video not found: {source_video}")
@@ -52,10 +59,13 @@ def run_pipeline(
     audio_path = settings.transcripts_dir / f"{stem}.wav"
     transcript_json_path = settings.transcripts_dir / f"{stem}.json"
 
+    emit_progress("extracting audio", 10)
     extract_audio(str(source_video), str(audio_path))
+    emit_progress("transcribing", 25)
     transcript_bundle = transcribe_audio(str(audio_path))
     write_json(transcript_json_path, transcript_bundle.model_dump())
 
+    emit_progress("selecting clips", 45)
     clip_candidates = select_clip_candidates_with_crewai(
         transcript_bundle=transcript_bundle,
         output_count=output_count,
@@ -65,7 +75,10 @@ def run_pipeline(
     )
 
     rendered_clips: list[RenderedClip] = []
+    clip_count = max(1, len(clip_candidates))
     for index, candidate in enumerate(clip_candidates, start=1):
+        render_progress = 55 + round((index - 1) / clip_count * 25)
+        emit_progress(f"rendering clip {index} of {clip_count}", render_progress)
         clip_stem = f"{stem}_{index:02d}_{slugify(candidate.title)[:40]}"
         raw_clip_path = settings.clips_dir / f"{clip_stem}.mp4"
         vertical_clip_path = settings.vertical_dir / f"{clip_stem}_vertical.mp4"
@@ -94,6 +107,7 @@ def run_pipeline(
             and settings.google_drive_folder_id
             and (settings.google_service_account_file or settings.google_service_account_json)
         ):
+            emit_progress(f"uploading clip {index} to google drive", min(92, 82 + index))
             upload_result = export_to_google_drive(
                 file_path=str(captioned_path),
                 folder_id=settings.google_drive_folder_id,
@@ -104,12 +118,14 @@ def run_pipeline(
 
         rendered_clips.append(rendered)
 
+    emit_progress("saving manifest", 95)
     manifest = {
         "source_video": str(source_video),
         "transcript_path": str(transcript_json_path),
         "clips": [clip.model_dump() for clip in rendered_clips],
     }
     manifest_path = save_manifest(str(settings.manifests_dir / f"{stem}_manifest.json"), manifest)
+    emit_progress("finalizing downloads", 98)
 
     return PipelineRunResult(
         source_video=str(source_video),
