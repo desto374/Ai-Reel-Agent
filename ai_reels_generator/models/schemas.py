@@ -45,3 +45,13 @@ class PipelineRunResult(BaseModel):
     transcript_path: str
     manifest_path: str
     clips: List[RenderedClip]
+
+
+class JobItem(BaseModel):
+    job_id: str
+    filename: str
+    status: str
+    stage: str
+    progress: int = 0
+    error: Optional[str] = None
+    result: Optional[PipelineRunResult] = None

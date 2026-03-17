@@ -4,7 +4,8 @@ from flask import Flask, jsonify, render_template_string, request
 from dotenv import load_dotenv
 
 from config.settings import get_settings
-from services.pipeline import run_pipeline, save_uploaded_video
+from services.job_manager import create_job, get_job
+from services.pipeline import save_uploaded_video
 
 
 load_dotenv()
@@ -205,6 +206,7 @@ HTML = """
       const statusText = document.getElementById('statusText');
       const progressBar = document.getElementById('progressBar');
       const submitButton = document.getElementById('submitButton');
+      let activeJobIds = [];
 
       browseLink.addEventListener('click', () => input.click());
       input.addEventListener('change', renderFiles);
@@ -275,6 +277,58 @@ HTML = """
         });
       }
 
+      function renderLiveJobs(payload) {
+        results.style.display = 'block';
+        results.innerHTML = '';
+        payload.jobs.forEach((job) => {
+          const section = document.createElement('div');
+          section.className = 'job';
+          section.innerHTML = `
+            <p><strong>File:</strong> ${job.filename}</p>
+            <p><strong>Status:</strong> ${job.status}</p>
+            <p><strong>Stage:</strong> ${job.stage}</p>
+            <p><strong>Progress:</strong> ${job.progress}%</p>
+            ${job.error ? `<p><strong>Error:</strong> ${job.error}</p>` : ''}
+          `;
+          if (job.result) {
+            const result = job.result;
+            const resultBlock = document.createElement('div');
+            resultBlock.innerHTML = `
+              <p><strong>Transcript:</strong> ${result.transcript_path}</p>
+              <p><strong>Manifest:</strong> ${result.manifest_path}</p>
+            `;
+            section.appendChild(resultBlock);
+            (result.clips || []).forEach((clip) => {
+              const item = document.createElement('div');
+              item.className = 'clip';
+              item.innerHTML = `
+                <strong>${clip.title}</strong><br>
+                Source: ${clip.source_start}s to ${clip.source_end}s<br>
+                Captioned file: ${clip.captioned_path}<br>
+                ${clip.drive_link ? `Drive: <a href="${clip.drive_link}" target="_blank" rel="noreferrer">open</a>` : 'Drive: not uploaded'}
+              `;
+              section.appendChild(item);
+            });
+          }
+          results.appendChild(section);
+        });
+      }
+
+      async function pollJobs() {
+        if (!activeJobIds.length) return;
+        const responses = await Promise.all(activeJobIds.map((jobId) => fetch(`/api/jobs/${jobId}`).then((r) => r.json())));
+        renderLiveJobs({ jobs: responses });
+        const completed = responses.filter((job) => job.status === 'completed' || job.status === 'failed');
+        const avgProgress = Math.round(responses.reduce((sum, job) => sum + (job.progress || 0), 0) / responses.length);
+        progressBar.style.width = `${avgProgress}%`;
+        statusText.textContent = completed.length === responses.length ? 'Processing complete.' : 'Processing videos in CrewAI backend...';
+        if (completed.length !== responses.length) {
+          setTimeout(pollJobs, 1500);
+        } else {
+          submitButton.disabled = false;
+        }
+      }
+
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         clearError();
@@ -309,11 +363,15 @@ HTML = """
             const payload = JSON.parse(xhr.responseText);
             if (xhr.status >= 400) {
               showError(payload.error || 'Upload failed.');
+              submitButton.disabled = false;
               return;
             }
-            renderResults(payload);
+            activeJobIds = payload.job_ids || [];
+            statusText.textContent = 'Upload complete. Starting jobs...';
+            pollJobs();
           } catch (_error) {
             showError('The server returned an unexpected response.');
+            submitButton.disabled = false;
           }
         };
 
@@ -342,22 +400,30 @@ def index():
         if not uploads:
             return jsonify({"error": "Choose at least one .mp4 or .mov file."}), 400
         try:
-            results = []
             output_count = int(request.form.get("output_count", "5"))
             upload_to_drive = request.form.get("upload_to_drive", "true").lower() == "true"
+            job_ids: list[str] = []
             for upload in uploads:
                 saved_video = save_uploaded_video(upload, settings.uploads_dir)
-                result = run_pipeline(
+                job = create_job(
                     video_path=saved_video,
                     settings=settings,
                     output_count=output_count,
                     upload_to_drive=upload_to_drive,
                 )
-                results.append(result.model_dump())
-            return jsonify({"results": results}), 200
+                job_ids.append(job.job_id)
+            return jsonify({"job_ids": job_ids}), 202
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
     return render_template_string(HTML)
+
+
+@app.get("/api/jobs/<job_id>")
+def job_status(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job.model_dump()), 200
 
 
 if __name__ == "__main__":
