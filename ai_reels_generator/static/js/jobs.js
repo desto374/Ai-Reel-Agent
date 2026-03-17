@@ -1,6 +1,28 @@
 import { renderLiveJobs } from "./renderers.js";
 import { setStatus } from "./ui.js";
 
+function overallStatusMessage(responses) {
+  const finished = responses.filter((job) => job.status === "completed" || job.status === "failed").length;
+  const failed = responses.filter((job) => job.status === "failed").length;
+  const completed = responses.filter((job) => job.status === "completed").length;
+
+  if (finished === responses.length) {
+    if (failed && completed) {
+      return "Finished with partial failures. Download completed outputs below.";
+    }
+    if (failed) {
+      return "All jobs failed.";
+    }
+    return "All jobs finished. Downloads are ready.";
+  }
+
+  if (responses.some((job) => job.stage === "exporting results")) {
+    return "Finalizing exports and preparing downloads…";
+  }
+
+  return "Processing uploads through the CrewAI backend…";
+}
+
 export async function pollJobs(state, elements) {
   if (!state.activeJobIds.length) {
     return;
@@ -22,9 +44,7 @@ export async function pollJobs(state, elements) {
     elements.statusBox,
     elements.statusText,
     elements.progressBar,
-    finished === responses.length
-      ? "All jobs finished."
-      : "Processing uploads through the CrewAI backend…",
+    overallStatusMessage(responses),
     averageProgress
   );
 

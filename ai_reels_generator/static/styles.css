@@ -537,6 +537,15 @@ code {
   font-size: 0.98rem;
 }
 
+.inline-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.inline-link:hover {
+  text-decoration: underline;
+}
+
 .error-text {
   margin-top: 10px;
   color: #9a1f1f;
@@ -563,6 +572,31 @@ code {
 .artifact small {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.artifact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.artifact-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(204, 90, 31, 0.1);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.artifact-link:hover {
+  background: rgba(204, 90, 31, 0.16);
 }
 
 .artifact a {
