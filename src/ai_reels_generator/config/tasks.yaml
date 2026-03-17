@@ -1,0 +1,14 @@
+transcription_task:
+  description: Extract audio, create a transcript, and analyze hooks and topic shifts.
+
+clip_selection_task:
+  description: Select high-quality short-form clip candidates from the transcript.
+
+edit_task:
+  description: Plan the cut and vertical conversion steps for selected clips.
+
+caption_task:
+  description: Plan subtitle generation and caption burn-in for each clip.
+
+export_task:
+  description: Plan manifest generation and delivery output handling.

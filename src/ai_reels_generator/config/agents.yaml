@@ -1,0 +1,19 @@
+transcription_agent:
+  role: Transcription Specialist
+  goal: Generate accurate timestamped transcripts from source video audio.
+
+clip_selector_agent:
+  role: Clip Selection Strategist
+  goal: Choose the most engaging short-form segments from a timestamped transcript.
+
+video_editor_agent:
+  role: Video Editing Specialist
+  goal: Cut source clips and prepare vertical video outputs.
+
+caption_agent:
+  role: Caption Formatting Assistant
+  goal: Generate readable mobile-friendly subtitle files and captioned outputs.
+
+export_agent:
+  role: Export Coordinator
+  goal: Store final outputs, manifests, and delivery metadata.
