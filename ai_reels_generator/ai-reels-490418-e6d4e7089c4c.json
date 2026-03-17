@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "ai-reels-490418",
+  "private_key_id": "e6d4e7089c4cd22a3c305ad1320e0613b1ecade9",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDSoqH7eoVnLtYS\n1s4/PTZ9SDegIvhFhWpCFNBXzVBZNgmq/GDEL+uYU08lQzSkpufYLcakDVGsHW4/\nTVoiLjtGiWZlrZqlonIUlTZiiYKuYhHFZsnkfYYDJJcdUj441Jti/wx3/0D1W3lr\nFFbZAi+TpDYKTZPAaVPN5aIdvEtug20ogJT9XAeYH72W2dacZ9L4ohDFUvVEWYpR\nNjFjvKaYIwiuPhQWOyCGNCWjA5U1TJRyYm2NQE3oLrF+RxUc2mp6AuC9Y3d9odnf\n+lrWMyNC0seMPfp6It9ug23jKaQnKVarC+j0vdPZUULJgr0Cxgax+xkdUSNHNq42\nst8SzsiDAgMBAAECggEAR7kxRxyVSGleY9PZLxd88nQg3NqLh8DCSfYka4FyFq6b\n5ClEGgnnQ1s63AliZ56d27LarQoMAXuUCuIgCvuLG521zHGs8zG5fuDAQBVq9k5W\nls1FehR0CaXv/v/+SAO9VZxbdpDoYaPgWGH4oLRp1vBXpnJ8GUzESJwk89MmLF7d\nrAIvNLb2pvtHG2LI8KoRJRLjSqgMXZil/ksDz4PxFiHx2/wTxyAUQlYZ0rNB7OIF\nfq3fFGAsClE2hGeVrvZXQM8BAJKgP1nc2aMC2uO5Z0Zuz18vGE74qypYt3NjSpUj\nwR2EwwVCw39S0iFvStFEqqrhdhyNr1Vug9CQ+qnRgQKBgQD7amV7OcTbbu+68MIb\nb2F2NxdGh0fgbzLEaAChkwPzWmRQbivUYyZLSwV0VUM4Pvkf/slDoGx3uimg85M2\nPUO/fZ/NIbDSkf7xH04gKJE34CKdm1ORqLGz5a8GDyv+eb9ng6Neu+6qSmL+Jbd4\nnl/MFmh4lkVaHDUtZWtlHCBpUwKBgQDWed/e0Av15qFTYNQXRq/MxkSgJZfq9yRB\nCUWwjJVE3FbhBWgDXj04UWkDJ+H9m9a1X2piqSdYVLAHEhbS0ms7557Yguxn3nFZ\ngEu5fIEnO5hHbOCy+e+fJMNKk+6oIfXQnRee6RTX3zU6THgmkCsiGumgSWXFc9Zw\nyfKrWJ3OEQKBgQCoEclDZiv+URv7iWUJeBzcLRnnMRpQo6V5fNknKiOS9BNpXSz5\nr0pzPPSpfzIPkLFzvRyIk97O7ulTSmFX+f6nLXC9bc9KBQU75aSRhO0HQFODrslf\n7zjUPTASyeOsG3Fj3rFA7DsxJcclhMsw3BbIVRaDvlkgUwkNjuYLUpEsNwKBgFc2\nHaNDo+lsy6LU18lTM/8njBY20yx3LGXJuG3O7I+grS84/I+KDYjOCc5/tDRk3wzH\nbMILmHUhkqZ9Y4x8haBJUd0md6zQ1fSX57LX/siOQiChFEmSui5TS5oSx1PU41jd\n2BIFIzWYjNNU7vJ3YyKuINvNnLWKoeMhKy0jjp+RAoGAKmzStuaDxup3Vxhec9Zh\npASrCHFFFGVvH4vLUPMefgX4VmEyQW/Pm5PxLlRq/O3ZBEFHsgXZrE6Y9gYNrcrB\nbew8xa+stj7ZYcSmTIdOjNIQDjcJq+X9Bep7vIgYginUrmBfPPLd8rtWsUxq5xsD\n+hQmwBVDlwHai964Ud6Qu3s=\n-----END PRIVATE KEY-----\n",
+  "client_email": "ai-reels-agent@ai-reels-490418.iam.gserviceaccount.com",
+  "client_id": "118064099229592368824",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ai-reels-agent%40ai-reels-490418.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
