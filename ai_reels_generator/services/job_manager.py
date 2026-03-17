@@ -7,6 +7,7 @@ from typing import Any
 
 from config.settings import Settings
 from models.schemas import JobItem
+from services.debug_webhook import build_debug_payload, send_debug_to_n8n
 
 
 _JOBS: dict[str, JobItem] = {}
@@ -68,4 +69,12 @@ def _run_job(
         )
         _update_job(job_id, status="completed", stage="completed", progress=100, result=result)
     except Exception as exc:
+        print(f"[job-manager] Job {job_id} failed: {exc}")
+        send_debug_to_n8n(
+            build_debug_payload(
+                issue="CrewAI not starting or pipeline failure",
+                exc=exc,
+            ),
+            webhook_url=settings.debug_webhook_url,
+        )
         _update_job(job_id, status="failed", stage="failed", error=str(exc), progress=100)

@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from config.settings import get_settings
+from services.debug_webhook import build_debug_payload, send_debug_to_n8n
 from services.pipeline import run_pipeline
 
 
@@ -27,12 +28,23 @@ def main() -> None:
 
     video_path = Path(args.video_path)
     settings.ensure_directories()
-    result = run_pipeline(
-        video_path=video_path,
-        settings=settings,
-        output_count=args.output_count,
-    )
-    print(result.model_dump_json(indent=2))
+    try:
+        result = run_pipeline(
+            video_path=video_path,
+            settings=settings,
+            output_count=args.output_count,
+        )
+        print(result.model_dump_json(indent=2))
+    except Exception as exc:
+        print(f"[main] Pipeline execution failed: {exc}")
+        send_debug_to_n8n(
+            build_debug_payload(
+                issue="CrewAI not starting or pipeline failure",
+                exc=exc,
+            ),
+            webhook_url=settings.debug_webhook_url,
+        )
+        raise
 
 
 if __name__ == "__main__":

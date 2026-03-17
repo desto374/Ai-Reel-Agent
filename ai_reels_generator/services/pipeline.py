@@ -10,6 +10,7 @@ from openai import OpenAI
 from config.prompts import CLIP_SELECTOR_PROMPT
 from config.settings import Settings
 from models.schemas import ClipCandidate, ClipCandidateList, PipelineRunResult, RenderedClip, TranscriptBundle, TranscriptSegment
+from services.debug_webhook import build_debug_payload, send_debug_to_n8n
 from tools.ffmpeg_tools import burn_subtitles, create_edit_proxy, cut_clip, extract_audio, to_vertical
 from tools.storage_tools import export_to_google_drive, save_manifest
 from tools.subtitle_tools import write_srt
@@ -179,7 +180,14 @@ def select_clip_candidates_with_crewai(
         if not clips:
             raise ValueError("Clip selector returned no clips.")
         return normalize_clip_candidates(clips, clip_length_min, clip_length_max)
-    except Exception:
+    except Exception as exc:
+        print(f"[pipeline] CrewAI clip selection failed, falling back to transcript heuristics: {exc}")
+        send_debug_to_n8n(
+            build_debug_payload(
+                issue="CrewAI not starting or pipeline failure",
+                exc=exc,
+            )
+        )
         return fallback_clip_candidates(transcript_bundle, output_count, clip_length_min, clip_length_max)
 
 

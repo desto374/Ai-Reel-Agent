@@ -9,4 +9,5 @@ google-api-python-client>=2.164.0
 google-auth>=2.38.0
 google-auth-httplib2>=0.2.0
 imageio-ffmpeg>=0.6.0
+requests>=2.32.3
 pytest>=8.3.5
