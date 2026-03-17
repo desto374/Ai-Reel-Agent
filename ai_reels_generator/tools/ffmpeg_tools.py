@@ -5,6 +5,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
+HOSTED_VIDEO_WIDTH = 720
+HOSTED_VIDEO_HEIGHT = 1280
+HOSTED_VIDEO_CRF = "30"
+HOSTED_PRESET = "veryfast"
+HOSTED_AUDIO_BITRATE = "96k"
+
 
 def run_cmd(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
@@ -38,6 +44,34 @@ def extract_audio(video_path: str, audio_path: str) -> str:
         ]
     )
     return audio_path
+
+
+def create_edit_proxy(video_path: str, output_path: str) -> str:
+    ffmpeg = ensure_ffmpeg()
+    run_cmd(
+        [
+            ffmpeg,
+            "-y",
+            "-i",
+            video_path,
+            "-vf",
+            "scale='min(1280,iw)':-2",
+            "-c:v",
+            "libx264",
+            "-preset",
+            HOSTED_PRESET,
+            "-crf",
+            "31",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            HOSTED_AUDIO_BITRATE,
+            output_path,
+        ]
+    )
+    return output_path
 
 
 def prepare_transcription_audio(input_audio_path: str, output_audio_path: str) -> str:
@@ -103,8 +137,16 @@ def cut_clip(video_path: str, start: float, end: float, output_path: str) -> str
             str(end),
             "-c:v",
             "libx264",
+            "-preset",
+            HOSTED_PRESET,
+            "-crf",
+            HOSTED_VIDEO_CRF,
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            HOSTED_AUDIO_BITRATE,
             output_path,
         ]
     )
@@ -120,11 +162,19 @@ def to_vertical(input_path: str, output_path: str) -> str:
             "-i",
             input_path,
             "-vf",
-            "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+            f"scale={HOSTED_VIDEO_WIDTH}:{HOSTED_VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={HOSTED_VIDEO_WIDTH}:{HOSTED_VIDEO_HEIGHT}",
             "-c:v",
             "libx264",
+            "-preset",
+            HOSTED_PRESET,
+            "-crf",
+            HOSTED_VIDEO_CRF,
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            HOSTED_AUDIO_BITRATE,
             output_path,
         ]
     )
@@ -143,8 +193,16 @@ def burn_subtitles(video_path: str, srt_path: str, output_path: str) -> str:
             f"subtitles={srt_path}",
             "-c:v",
             "libx264",
+            "-preset",
+            HOSTED_PRESET,
+            "-crf",
+            HOSTED_VIDEO_CRF,
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            HOSTED_AUDIO_BITRATE,
             output_path,
         ]
     )

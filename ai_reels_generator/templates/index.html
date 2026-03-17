@@ -60,7 +60,7 @@
               <span class="section-kicker">Trigger</span>
               <h2>Upload source videos</h2>
             </div>
-            <p>Use drag and drop or browse from your device. Multiple files are supported.</p>
+            <p>Use drag and drop or browse from your device. Multiple files are supported, but hosted runs are smoothest with smaller uploads.</p>
           </div>
 
           <div id="errorBox" class="alert alert-error" hidden></div>
@@ -80,10 +80,12 @@
               <div id="fileList" class="file-list"></div>
             </div>
 
+            <p class="hosting-note">Recommended for Render: under 500 MB per file and 3 clips per job for the smoothest turnaround on a 2 GB / 1 CPU instance.</p>
+
             <div class="control-grid">
               <label class="field">
                 <span>Clips per video</span>
-                <input id="output_count" type="number" name="output_count" min="1" max="10" value="5">
+                <input id="output_count" type="number" name="output_count" min="1" max="6" value="3">
               </label>
 
               <label class="field">

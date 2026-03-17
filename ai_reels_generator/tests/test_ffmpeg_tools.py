@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from tools.ffmpeg_tools import (
     burn_subtitles,
+    create_edit_proxy,
     cut_clip,
     estimate_chunk_count,
     extract_audio,
@@ -38,8 +39,16 @@ def test_cut_clip_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
             "25.0",
             "-c:v",
             "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "30",
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            "96k",
             "clip.mp4",
         ]
     )
@@ -57,11 +66,19 @@ def test_to_vertical_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
             "-i",
             "clip.mp4",
             "-vf",
-            "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+            "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
             "-c:v",
             "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "30",
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            "96k",
             "vertical.mp4",
         ]
     )
@@ -82,9 +99,47 @@ def test_burn_subtitles_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
             "subtitles=captions.srt",
             "-c:v",
             "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "30",
+            "-pix_fmt",
+            "yuv420p",
             "-c:a",
             "aac",
+            "-b:a",
+            "96k",
             "captioned.mp4",
+        ]
+    )
+
+
+@patch("tools.ffmpeg_tools.ensure_ffmpeg", return_value="ffmpeg")
+@patch("tools.ffmpeg_tools.run_cmd")
+def test_create_edit_proxy_builds_expected_command(mock_run_cmd, _mock_ffmpeg):
+    result = create_edit_proxy("input.mov", "proxy.mp4")
+    assert result == "proxy.mp4"
+    mock_run_cmd.assert_called_once_with(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            "input.mov",
+            "-vf",
+            "scale='min(1280,iw)':-2",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "31",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "96k",
+            "proxy.mp4",
         ]
     )
 

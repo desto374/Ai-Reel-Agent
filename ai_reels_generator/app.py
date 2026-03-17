@@ -64,7 +64,7 @@ def index():
         if not uploads:
             return jsonify({"error": "Choose at least one .mp4 or .mov file."}), 400
         try:
-            output_count = int(request.form.get("output_count", "5"))
+            output_count = int(request.form.get("output_count", "3"))
             upload_to_drive = request.form.get("upload_to_drive", "true").lower() == "true"
             job_ids: list[str] = []
             for upload in uploads:

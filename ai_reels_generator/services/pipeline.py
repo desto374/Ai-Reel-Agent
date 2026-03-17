@@ -10,7 +10,7 @@ from openai import OpenAI
 from config.prompts import CLIP_SELECTOR_PROMPT
 from config.settings import Settings
 from models.schemas import ClipCandidate, ClipCandidateList, PipelineRunResult, RenderedClip, TranscriptBundle, TranscriptSegment
-from tools.ffmpeg_tools import burn_subtitles, cut_clip, extract_audio, to_vertical
+from tools.ffmpeg_tools import burn_subtitles, create_edit_proxy, cut_clip, extract_audio, to_vertical
 from tools.storage_tools import export_to_google_drive, save_manifest
 from tools.subtitle_tools import write_srt
 from tools.utils import ensure_dir, write_json
@@ -58,9 +58,12 @@ def run_pipeline(
     stem = slugify(source_video.stem)
     audio_path = settings.transcripts_dir / f"{stem}.wav"
     transcript_json_path = settings.transcripts_dir / f"{stem}.json"
+    proxy_video_path = settings.clips_dir / f"{stem}_proxy.mp4"
 
     emit_progress("extracting audio", 10)
     extract_audio(str(source_video), str(audio_path))
+    emit_progress("building edit proxy", 18)
+    create_edit_proxy(str(source_video), str(proxy_video_path))
     emit_progress("transcribing", 25)
     transcript_bundle = transcribe_audio(str(audio_path))
     write_json(transcript_json_path, transcript_bundle.model_dump())
@@ -85,7 +88,7 @@ def run_pipeline(
         srt_path = settings.captions_dir / f"{clip_stem}.srt"
         captioned_path = settings.captions_dir / f"{clip_stem}_captioned.mp4"
 
-        cut_clip(str(source_video), candidate.start, candidate.end, str(raw_clip_path))
+        cut_clip(str(proxy_video_path), candidate.start, candidate.end, str(raw_clip_path))
         to_vertical(str(raw_clip_path), str(vertical_clip_path))
 
         clip_transcript = clip_transcript_bundle(transcript_bundle, candidate.start, candidate.end)
