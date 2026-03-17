@@ -11,9 +11,15 @@ def run_cmd(cmd: list[str]) -> None:
 
 def ensure_ffmpeg() -> str:
     ffmpeg_path = shutil.which("ffmpeg")
-    if not ffmpeg_path:
-        raise RuntimeError("ffmpeg is not installed or not available on PATH.")
-    return ffmpeg_path
+    if ffmpeg_path:
+        return ffmpeg_path
+
+    try:
+        from imageio_ffmpeg import get_ffmpeg_exe
+
+        return get_ffmpeg_exe()
+    except Exception as exc:
+        raise RuntimeError("ffmpeg is not installed and no bundled ffmpeg binary is available.") from exc
 
 
 def extract_audio(video_path: str, audio_path: str) -> str:

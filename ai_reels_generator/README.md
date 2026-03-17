@@ -39,7 +39,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Install `ffmpeg` separately and ensure it is available on `PATH`.
+Install `ffmpeg` separately for local development when possible. In hosted environments, the app can also fall back to the bundled `imageio-ffmpeg` binary.
 
 CrewAI note:
 
@@ -107,7 +107,7 @@ Notes:
 
 - The Flask app is the public trigger UI.
 - CrewAI runs behind the Flask app.
-- This app needs `ffmpeg` available in the Render environment.
+- This app can use the bundled `imageio-ffmpeg` binary on Render, so `apt-get` is not required.
 - For larger uploads or longer jobs, move processing to a background worker later.
 
 ## Recommended next steps

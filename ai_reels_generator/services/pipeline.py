@@ -90,11 +90,15 @@ def run_pipeline(
             srt_path=str(srt_path),
         )
 
-        if upload_to_drive and settings.google_drive_folder_id and settings.google_service_account_file:
+        if (
+            upload_to_drive
+            and settings.google_drive_folder_id
+            and (settings.google_service_account_file or settings.google_service_account_json)
+        ):
             upload_result = export_to_google_drive(
                 file_path=str(captioned_path),
                 folder_id=settings.google_drive_folder_id,
-                service_account_file=settings.google_service_account_file,
+                service_account_file=settings.resolved_google_service_account_file(),
             )
             rendered.drive_file_id = upload_result.get("file_id")
             rendered.drive_link = upload_result.get("web_view_link") or upload_result.get("web_content_link")
