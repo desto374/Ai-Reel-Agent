@@ -1,14 +1,28 @@
 transcription_task:
-  description: Extract audio, create a transcript, and analyze hooks and topic shifts.
+  description: >
+    Use the source video at {video_path}. Extract audio, create a transcript,
+    and analyze hooks and topic shifts. Supported formats are mp4 and mov.
+    If {source_type} is "url", treat {video_path} as a remote file URL. If
+    {source_type} is "local", treat {video_path} as a file path already
+    available to the runtime.
 
 clip_selection_task:
-  description: Select high-quality short-form clip candidates from the transcript.
+  description: >
+    Select {output_count} high-quality short-form clip candidates from the
+    transcript. Each clip should usually be between {clip_length_min} and
+    {clip_length_max} seconds.
 
 edit_task:
-  description: Plan the cut and vertical conversion steps for selected clips.
+  description: >
+    Plan the cut and vertical conversion steps for selected clips from
+    {video_path}. The output format should be 9:16 vertical reels.
 
 caption_task:
-  description: Plan subtitle generation and caption burn-in for each clip.
+  description: >
+    Plan subtitle generation and caption burn-in for each clip. If
+    {brand_profile} is provided, use it as the visual styling direction.
 
 export_task:
-  description: Plan manifest generation and delivery output handling.
+  description: >
+    Plan manifest generation and delivery output handling. If {upload_to_drive}
+    is true, prepare Google Drive delivery using the configured folder.

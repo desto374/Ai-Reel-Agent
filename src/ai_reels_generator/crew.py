@@ -82,6 +82,13 @@ class AiReelsGeneratorCrew:
 
         task_obj = build_transcription_task()
         task_obj.agent = self.transcription_agent()
+        task_obj.description = (
+            "Use the source video at {video_path}. Extract audio, create a transcript, "
+            "and analyze hooks and topic shifts. Supported formats are mp4 and mov. "
+            "If {source_type} is 'url', treat {video_path} as a remote file URL. "
+            "If {source_type} is 'local', treat {video_path} as a file path already "
+            "available to the runtime."
+        )
         return task_obj
 
     @task
@@ -91,6 +98,11 @@ class AiReelsGeneratorCrew:
         task_obj = build_clip_selection_task()
         task_obj.agent = self.clip_selector_agent()
         task_obj.context = [self.transcription_task()]
+        task_obj.description = (
+            "Select {output_count} high-quality short-form clip candidates from the "
+            "transcript. Each clip should usually be between {clip_length_min} and "
+            "{clip_length_max} seconds."
+        )
         return task_obj
 
     @task
@@ -100,6 +112,10 @@ class AiReelsGeneratorCrew:
         task_obj = build_edit_task()
         task_obj.agent = self.video_editor_agent()
         task_obj.context = [self.clip_selection_task()]
+        task_obj.description = (
+            "Plan the cut and vertical conversion steps for selected clips from "
+            "{video_path}. The output format should be 9:16 vertical reels."
+        )
         return task_obj
 
     @task
@@ -109,6 +125,10 @@ class AiReelsGeneratorCrew:
         task_obj = build_caption_task()
         task_obj.agent = self.caption_agent()
         task_obj.context = [self.edit_task()]
+        task_obj.description = (
+            "Plan subtitle generation and caption burn-in for each clip. "
+            "If {brand_profile} is provided, use it as the visual styling direction."
+        )
         return task_obj
 
     @task
@@ -118,6 +138,10 @@ class AiReelsGeneratorCrew:
         task_obj = build_export_task()
         task_obj.agent = self.export_agent()
         task_obj.context = [self.caption_task()]
+        task_obj.description = (
+            "Plan manifest generation and delivery output handling. "
+            "If {upload_to_drive} is true, prepare Google Drive delivery."
+        )
         return task_obj
 
     @crew
