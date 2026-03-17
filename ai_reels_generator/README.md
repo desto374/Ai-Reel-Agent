@@ -69,6 +69,12 @@ flask --app app run
 
 Then open `http://127.0.0.1:5000`.
 
+Production-style local run:
+
+```bash
+gunicorn app:app
+```
+
 ## Inputs
 
 - Local file path via CLI
@@ -82,6 +88,27 @@ Then open `http://127.0.0.1:5000`.
 - `GOOGLE_SERVICE_ACCOUNT_FILE`
 - `INPUT_VIDEO_PATH`
 - `OUTPUT_DIR`
+
+## Render Deployment
+
+Recommended setup:
+
+1. Deploy the repo with Render using the repository root.
+2. Set the Render root directory to `ai_reels_generator` if you are not using the included root-level `render.yaml`.
+3. Add environment variables in Render:
+   - `OPENAI_API_KEY`
+   - `GOOGLE_DRIVE_FOLDER_ID`
+   - `GOOGLE_SERVICE_ACCOUNT_FILE`
+   - `INPUT_VIDEO_PATH`
+   - `OUTPUT_DIR`
+4. Upload the Google service account JSON to Render as a secret file or mount it through your deploy flow.
+
+Notes:
+
+- The Flask app is the public trigger UI.
+- CrewAI runs behind the Flask app.
+- This app needs `ffmpeg` available in the Render environment.
+- For larger uploads or longer jobs, move processing to a background worker later.
 
 ## Recommended next steps
 

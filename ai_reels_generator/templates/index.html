@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reel Forge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="orb orb-left"></div>
+      <div class="orb orb-right"></div>
+
+      <header class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">CrewAI Video Workflow</span>
+          <h1>Turn long videos into short-form reels without touching a timeline.</h1>
+          <p class="lede">
+            Upload one or many <code>.mp4</code> or <code>.mov</code> files. The system
+            transcribes, selects strong moments, renders vertical clips, burns captions,
+            and ships exports where you need them.
+          </p>
+          <div class="hero-metrics">
+            <div class="metric">
+              <strong>1 upload</strong>
+              <span>Many reel outputs</span>
+            </div>
+            <div class="metric">
+              <strong>9:16</strong>
+              <span>Vertical-ready rendering</span>
+            </div>
+            <div class="metric">
+              <strong>CrewAI</strong>
+              <span>Backend orchestration</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="hero-panel">
+          <div class="panel-card status-card">
+            <span class="panel-label">Pipeline Stages</span>
+            <ol class="stage-list">
+              <li>Upload and queue</li>
+              <li>Transcribe and analyze</li>
+              <li>Select clip moments</li>
+              <li>Render vertical cuts</li>
+              <li>Caption and export</li>
+            </ol>
+          </div>
+        </aside>
+      </header>
+
+      <main class="workspace">
+        <section class="panel-card uploader-card">
+          <div class="section-head">
+            <div>
+              <span class="section-kicker">Trigger</span>
+              <h2>Upload source videos</h2>
+            </div>
+            <p>Use drag and drop or browse from your device. Multiple files are supported.</p>
+          </div>
+
+          <div id="errorBox" class="alert alert-error" hidden></div>
+
+          <form id="uploadForm" class="upload-form" method="post" enctype="multipart/form-data">
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload videos">
+              <input id="videos" class="hidden-input" type="file" name="videos" accept=".mp4,.mov" multiple required>
+              <div class="dropzone-art">
+                <div class="dropzone-icon">+</div>
+              </div>
+              <div class="dropzone-copy">
+                <strong>Drop videos here</strong>
+                <p>or <button id="browseLink" class="link-button" type="button">choose files from your computer</button></p>
+                <span class="dropzone-meta">Accepted: MP4, MOV</span>
+              </div>
+              <div id="fileList" class="file-list"></div>
+            </div>
+
+            <div class="control-grid">
+              <label class="field">
+                <span>Clips per video</span>
+                <input id="output_count" type="number" name="output_count" min="1" max="10" value="5">
+              </label>
+
+              <label class="field">
+                <span>Export mode</span>
+                <select id="upload_to_drive" name="upload_to_drive">
+                  <option value="true">Upload to Google Drive</option>
+                  <option value="false">Save locally only</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button id="submitButton" class="primary-button" type="submit">Start Reel Jobs</button>
+              <p class="form-note">Uploads create background jobs. You can stay on this page and watch progress update live.</p>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-card monitor-card">
+          <div class="section-head">
+            <div>
+              <span class="section-kicker">Monitor</span>
+              <h2>Job progress</h2>
+            </div>
+            <p>Every upload becomes a tracked job. Stages and results update automatically.</p>
+          </div>
+
+          <div id="statusBox" class="status-box" hidden>
+            <div class="progress-rail">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="statusText" class="status-text">Waiting for upload…</div>
+          </div>
+
+          <div id="emptyState" class="empty-state">
+            <strong>No active jobs yet</strong>
+            <p>Upload a source video to start transcription, clip selection, captions, and export processing.</p>
+          </div>
+
+          <div id="results" class="results-grid" hidden></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

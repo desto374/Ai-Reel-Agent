@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ai-reels-generator
+    runtime: python
+    rootDir: ai_reels_generator
+    buildCommand: |
+      apt-get update && apt-get install -y ffmpeg
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: OUTPUT_DIR
+        value: outputs
+      - key: INPUT_VIDEO_PATH
+        value: input_videos/source.mp4
