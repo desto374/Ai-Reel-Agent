@@ -39,7 +39,7 @@ def main() -> None:
         print(f"[main] Pipeline execution failed: {exc}")
         send_debug_to_n8n(
             build_debug_payload(
-                issue="CrewAI not starting or pipeline failure",
+                issue="CrewAI or pipeline failure",
                 exc=exc,
             ),
             webhook_url=settings.debug_webhook_url,

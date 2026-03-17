@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import traceback
-from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -39,6 +38,7 @@ def _extract_code_snippet_from_traceback(exc: BaseException, max_lines: int = 12
 def build_debug_payload(
     issue: str,
     exc: BaseException,
+    job_id: str | None = None,
     service: str = "render-backend",
 ) -> dict[str, str]:
     error_message = str(exc) or exc.__class__.__name__
@@ -52,14 +52,15 @@ def build_debug_payload(
         "issue": issue,
         "error": error_message,
         "logs": logs,
+        "job_id": job_id or "",
         "service": service,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def send_debug_to_n8n(data: dict[str, str], webhook_url: str | None = None) -> None:
-    target_url = webhook_url or os.getenv("DEBUG_WEBHOOK_URL") or DEFAULT_DEBUG_WEBHOOK_URL
+    target_url = webhook_url or os.getenv("N8N_WEBHOOK_URL") or os.getenv("DEBUG_WEBHOOK_URL") or DEFAULT_DEBUG_WEBHOOK_URL
     try:
+        print(f"[debug-webhook] Sending debug payload to {target_url}")
         response = requests.post(target_url, json=data, timeout=5)
         print(f"[debug-webhook] Sent debug payload to n8n with status {response.status_code}")
     except Exception as webhook_exc:

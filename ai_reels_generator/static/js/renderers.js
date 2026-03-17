@@ -73,6 +73,7 @@ function renderJob(job) {
       </div>
 
       ${job.error ? `<div class="error-text">${job.error}</div>` : ""}
+      ${job.warning ? `<div class="warning-text">${job.warning}</div>` : ""}
 
       ${
         job.result

@@ -184,7 +184,7 @@ def select_clip_candidates_with_crewai(
         print(f"[pipeline] CrewAI clip selection failed, falling back to transcript heuristics: {exc}")
         send_debug_to_n8n(
             build_debug_payload(
-                issue="CrewAI not starting or pipeline failure",
+                issue="CrewAI or pipeline failure",
                 exc=exc,
             )
         )

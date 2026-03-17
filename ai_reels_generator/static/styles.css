@@ -559,6 +559,12 @@ code {
   font-size: 0.94rem;
 }
 
+.warning-text {
+  margin-top: 10px;
+  color: #a84a18;
+  font-size: 0.94rem;
+}
+
 .artifact-list {
   display: grid;
   gap: 10px;

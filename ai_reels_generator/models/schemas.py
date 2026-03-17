@@ -54,4 +54,8 @@ class JobItem(BaseModel):
     stage: str
     progress: int = 0
     error: Optional[str] = None
+    warning: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    debug_reported: bool = False
     result: Optional[PipelineRunResult] = None
