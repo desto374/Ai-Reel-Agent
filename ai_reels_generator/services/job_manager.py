@@ -6,7 +6,6 @@ from pathlib import Path
 
 from config.settings import Settings
 from models.schemas import JobItem
-from services.pipeline import run_pipeline
 
 
 _JOBS: dict[str, JobItem] = {}
@@ -53,6 +52,8 @@ def _run_job(
     upload_to_drive: bool,
 ) -> None:
     try:
+        from services.pipeline import run_pipeline
+
         _update_job(job_id, status="running", stage="extracting audio", progress=10)
         _update_job(job_id, stage="transcribing", progress=30)
         _update_job(job_id, stage="selecting clips", progress=50)

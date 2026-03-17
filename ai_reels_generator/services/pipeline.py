@@ -14,7 +14,6 @@ from tools.storage_tools import export_to_google_drive, save_manifest
 from tools.subtitle_tools import write_srt
 from tools.utils import ensure_dir, write_json
 from tools.whisper_tools import transcribe_audio
-from workflows.reels_pipeline import build_reels_pipeline
 
 
 ALLOWED_EXTENSIONS = {".mp4", ".mov"}
@@ -131,6 +130,8 @@ def select_clip_candidates_with_crewai(
         return fallback_clip_candidates(transcript_bundle, output_count, clip_length_min, clip_length_max)
 
     try:
+        from workflows.reels_pipeline import build_reels_pipeline
+
         transcript_payload = [
             {
                 "start": segment.start,

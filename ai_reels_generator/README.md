@@ -72,7 +72,7 @@ Then open `http://127.0.0.1:5000`.
 Production-style local run:
 
 ```bash
-gunicorn app:app
+gunicorn app:app --workers 1 --threads 2 --timeout 300
 ```
 
 ## Inputs
@@ -108,6 +108,7 @@ Notes:
 - The Flask app is the public trigger UI.
 - CrewAI runs behind the Flask app.
 - This app can use the bundled `imageio-ffmpeg` binary on Render, so `apt-get` is not required.
+- For lower-memory hosting, use a single Gunicorn worker.
 - For larger uploads or longer jobs, move processing to a background worker later.
 
 ## Recommended next steps
