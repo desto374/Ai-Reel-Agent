@@ -46,6 +46,12 @@ CrewAI note:
 - Use Python `3.11+`
 - This project bootstraps CrewAI runtime storage into a local `.crewai_home/` folder so it can run cleanly from the project directory
 
+Recommended local file layout:
+
+- Keep your Google service account JSON under `credentials/`
+- Upload source videos through the web UI or place manual test files under `input_videos/`
+- Generated exports stay under `outputs/`
+
 ## Run
 
 CLI:
