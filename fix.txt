@@ -1,0 +1,295 @@
+1. ROOT CAUSE
+- crew.kickoff() was never actually executed. The route attempted to trigger the CrewAI agent in a “fire-and-forget” manner without ensuring a real coroutine or background thread was running the blocking kickoff call. As a result, the agent never started and no CrewAI logs appeared.
+- The webhook debug system posted “[object Object]” due to improper serialization in prior code paths (likely from a JS origin or incorrect serialization elsewhere). In the backend, there was no consistent JSON serialization and no robust try/except around webhook calls.
+- There was insufficient logging around the route and kickoff call, making it unclear whether the backend endpoint was even reached on Render.
+
+2. WHAT IS FAILING
+- The POST endpoint responsible for starting CrewAI did not actually call crew.kickoff() reliably due to incorrect async usage.
+- The webhook debug calls to n8n were not consistently awaited or wrapped, leading to missed debug telemetry and opaque “[object Object]” payloads.
+- Missing logging and missing environment key checks further obscured failures, especially on Render.
+
+3. FIXED CODE (FULL UPDATED SNIPPET)
+Below is a full, production-ready FastAPI app that:
+- Confirms the route is hit with prints and webhook events
+- Schedules a background thread to run crew.kickoff() reliably (non-blocking to the request)
+- Uses robust try/except for all critical sections
+- Posts structured JSON to the n8n webhook endpoint
+- Verifies LLM key presence and logs warnings
+
+File: app.py
+--------------------------------
+import os
+import json
+import time
+import asyncio
+import traceback
+from typing import Any, Dict, Optional
+
+import httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from anyio import to_thread
+
+# CrewAI imports (ensure these are installed and compatible)
+from crewai import Agent, Task, Crew  # Requires OPENAI_API_KEY or equivalent provider keys
+
+N8N_DEBUG_WEBHOOK_URL = os.getenv(
+    "N8N_DEBUG_WEBHOOK_URL",
+    "https://desto374.app.n8n.cloud/webhook/auto-debug"
+)
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+app = FastAPI(title="CrewAI Runner", version="1.0.0")
+
+
+async def send_debug_async(event: str, data: Optional[Dict[str, Any]] = None,
+                           level: str = "info", error: Optional[str] = None) -> None:
+    payload = {
+        "event": event,
+        "level": level,
+        "timestamp": int(time.time()),
+        "data": data or {},
+        "error": error
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.post(N8N_DEBUG_WEBHOOK_URL, json=payload)
+            print(f"[DEBUG] Webhook '{event}' sent. Status={resp.status_code}", flush=True)
+    except Exception as e:
+        print(f"[DEBUG][ERROR] Failed to send webhook '{event}': {e}", flush=True)
+
+
+def send_debug_sync(event: str, data: Optional[Dict[str, Any]] = None,
+                    level: str = "info", error: Optional[str] = None) -> None:
+    payload = {
+        "event": event,
+        "level": level,
+        "timestamp": int(time.time()),
+        "data": data or {},
+        "error": error
+    }
+    try:
+        with httpx.Client(timeout=5) as client:
+            resp = client.post(N8N_DEBUG_WEBHOOK_URL, json=payload)
+            print(f"[DEBUG] (sync) Webhook '{event}' sent. Status={resp.status_code}", flush=True)
+    except Exception as e:
+        print(f"[DEBUG][ERROR] (sync) Failed to send webhook '{event}': {e}", flush=True)
+
+
+def build_crew(context: Dict[str, Any]) -> Crew:
+    """
+    Build a Crew for the given context. Customize agents and tasks here.
+    """
+    agent = Agent(
+        role="Orchestrator",
+        goal="Process the incoming request and produce a useful summary.",
+        backstory="You are a helpful backend AI agent that processes tasks.",
+        verbose=True
+    )
+
+    body_preview = json.dumps(context.get("body", {}))[:300]
+    task_description = (
+        "Summarize the following request body and highlight any keys:\n"
+        f"{body_preview}\n"
+        "Return a short actionable summary."
+    )
+
+    task = Task(
+        description=task_description,
+        agent=agent,
+        expected_output="A concise summary of the request body."
+    )
+
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        verbose=True
+    )
+    return crew
+
+
+def run_crew_sync(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Synchronous runner that executes crew.kickoff(). Runs in a background thread.
+    """
+    print("[CREW] Building crew...", flush=True)
+    crew = build_crew(context)
+    print("[CREW] Starting crew.kickoff() ...", flush=True)
+    try:
+        # Prefer plain kickoff; if your Crew tasks require external inputs, pass them here.
+        result = None
+        try:
+            result = crew.kickoff()
+        except TypeError:
+            # Fallback for API variants that support inputs
+            result = crew.kickoff(inputs=context)
+
+        print("[CREW] crew.kickoff() completed.", flush=True)
+        result_text = str(result) if result is not None else ""
+        send_debug_sync(
+            event="crew_completed",
+            data={
+                "result_preview": result_text[:1000],
+                "context_keys": list(context.keys())
+            }
+        )
+        return {"ok": True, "result_preview": result_text[:1000]}
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[CREW][ERROR] {e}\n{tb}", flush=True)
+        send_debug_sync(
+            event="crew_failed",
+            level="error",
+            error=str(e),
+            data={"traceback": tb}
+        )
+        return {"ok": False, "error": str(e)}
+
+
+async def run_crew_background(context: Dict[str, Any]) -> None:
+    """
+    Run the sync crew runner in a background thread to avoid blocking the request.
+    """
+    await to_thread.run_sync(run_crew_sync, context)
+
+
+@app.on_event("startup")
+async def on_startup():
+    print("[BOOT] FastAPI startup", flush=True)
+    if not OPENAI_API_KEY:
+        print("[BOOT][WARN] OPENAI_API_KEY is not set; CrewAI may fail to run.", flush=True)
+        await send_debug_async(event="startup_warn", data={"missing": "OPENAI_API_KEY"}, level="warn")
+    else:
+        await send_debug_async(event="startup_ok", data={"OPENAI_API_KEY_present": True})
+
+
+@app.get("/health")
+async def health():
+    print("[HEALTH] OK", flush=True)
+    await send_debug_async(event="health_check", data={"status": "ok"})
+    return JSONResponse({"status": "ok"})
+
+
+@app.get("/")
+async def root():
+    print("[ROOT] Root route hit", flush=True)
+    await send_debug_async(event="root_hit")
+    return JSONResponse({"message": "CrewAI backend is running"})
+
+
+@app.post("/agent/run")
+async def run_agent(request: Request):
+    start = time.time()
+    headers = dict(request.headers)
+    body: Any = None
+    raw_body: Optional[str] = None
+
+    try:
+        try:
+            body = await request.json()
+        except Exception:
+            raw_body = (await request.body()).decode("utf-8", errors="ignore")
+            body = {"raw": raw_body}
+
+        print("[RUN] /agent/run called", flush=True)
+        print(f"[RUN] Headers: {json.dumps(headers)[:1000]}", flush=True)
+        print(f"[RUN] Body: {json.dumps(body)[:1000]}", flush=True)
+
+        await send_debug_async(
+            event="request_received",
+            data={
+                "path": str(request.url),
+                "method": request.method,
+                "headers": {k: v for k, v in headers.items() if k.lower() in ["content-type", "user-agent"]},
+                "body_preview": json.dumps(body)[:1000],
+            }
+        )
+
+        context = {
+            "headers": headers,
+            "body": body,
+            "received_at": int(start)
+        }
+
+        # Correctly schedule crew run using background thread
+        asyncio.create_task(run_crew_background(context))
+        print("[RUN] crew.kickoff() scheduled in background thread.", flush=True)
+
+        await send_debug_async(
+            event="crew_scheduled",
+            data={"scheduled": True, "latency_ms": int((time.time() - start) * 1000)}
+        )
+
+        return JSONResponse({
+            "status": "scheduled",
+            "message": "Crew run has been scheduled.",
+            "latency_ms": int((time.time() - start) * 1000)
+        })
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[RUN][ERROR] {e}\n{tb}", flush=True)
+        await send_debug_async(
+            event="handler_failed",
+            level="error",
+            error=str(e),
+            data={"traceback": tb}
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "error": str(e)}
+        )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    print("[BOOT] Starting local server on 0.0.0.0:8000", flush=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, log_level="info")
+
+
+File: requirements.txt
+--------------------------------
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+httpx==0.27.0
+anyio==4.3.0
+crewai==0.51.0
+pydantic==2.6.4
+python-dotenv==1.0.1
+
+
+4. DEPLOYMENT STEPS
+- Add the two files above (app.py and requirements.txt) to your repository.
+
+- Configure Render Service (Web Service)
+  - Environment variables:
+    - N8N_DEBUG_WEBHOOK_URL=https://desto374.app.n8n.cloud/webhook/auto-debug
+    - OPENAI_API_KEY=your_openai_key
+  - Build Command:
+    - pip install -r requirements.txt
+  - Start Command:
+    - uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info
+      (workers=1 ensures background tasks run in the same process)
+  - Health check path: /health
+
+- Deploy and verify:
+  - Check startup logs:
+    - [BOOT] FastAPI startup
+    - startup_ok or startup_warn
+  - Health:
+    - curl -s https://<your-render-url>/health
+  - Trigger agent with JSON:
+    - curl -s -X POST https://<your-render-url>/agent/run -H "Content-Type: application/json" -d '{"test":"hello"}'
+  - Trigger agent with raw body:
+    - curl -s -X POST https://<your-render-url>/agent/run --data 'foo=bar&baz=qux'
+
+- Validate observability:
+  - Render logs should show:
+    - [RUN] /agent/run called
+    - [RUN] crew.kickoff() scheduled in background thread.
+    - [CREW] Starting crew.kickoff() ...
+  - n8n webhook executions should include events:
+    - startup_ok/startup_warn, request_received, crew_scheduled, crew_completed or crew_failed, health_check
+
+This ensures the route is hit, crew.kickoff() is actually executed in a safe background thread, all errors are caught and reported, and the n8n webhook receives structured JSON instead of “[object Object]”.
