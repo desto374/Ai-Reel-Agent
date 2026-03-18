@@ -10,7 +10,7 @@ from openai import OpenAI
 from config.prompts import CLIP_SELECTOR_PROMPT
 from config.settings import Settings
 from models.schemas import ClipCandidate, ClipCandidateList, PipelineRunResult, RenderedClip, TranscriptBundle, TranscriptSegment
-from services.debug_webhook import build_debug_payload, send_debug_to_n8n
+from services.debug_webhook import build_debug_payload, build_event_payload, send_debug_to_n8n
 from tools.ffmpeg_tools import burn_subtitles, create_edit_proxy, cut_clip, extract_audio, to_vertical
 from tools.storage_tools import export_to_google_drive, save_manifest
 from tools.subtitle_tools import write_srt
@@ -146,7 +146,20 @@ def select_clip_candidates_with_crewai(
     clip_length_max: int,
     openai_api_key: str,
 ) -> list[ClipCandidate]:
-    if not transcript_bundle.segments or not openai_api_key:
+    if not transcript_bundle.segments:
+        print("[pipeline][CrewAI] No transcript segments available. Using fallback clip candidates.")
+        return fallback_clip_candidates(transcript_bundle, output_count, clip_length_min, clip_length_max)
+
+    if not openai_api_key:
+        print("[pipeline][CrewAI][WARN] OPENAI_API_KEY is not set. Using fallback clip candidates.")
+        send_debug_to_n8n(
+            build_event_payload(
+                "crewai_skipped_missing_key",
+                data={"output_count": output_count},
+                level="warn",
+                error="OPENAI_API_KEY is not set",
+            )
+        )
         return fallback_clip_candidates(transcript_bundle, output_count, clip_length_min, clip_length_max)
 
     try:
@@ -161,15 +174,30 @@ def select_clip_candidates_with_crewai(
             for segment in transcript_bundle.segments
         ]
         crew = build_reels_pipeline()
-        crew.kickoff(
-            inputs={
-                "transcript_json": json.dumps(transcript_payload, indent=2),
-                "clip_selector_prompt": CLIP_SELECTOR_PROMPT,
-                "output_count": output_count,
-                "clip_length_min": clip_length_min,
-                "clip_length_max": clip_length_max,
-            }
+        kickoff_inputs = {
+            "transcript_json": json.dumps(transcript_payload, indent=2),
+            "clip_selector_prompt": CLIP_SELECTOR_PROMPT,
+            "output_count": output_count,
+            "clip_length_min": clip_length_min,
+            "clip_length_max": clip_length_max,
+        }
+        print("[pipeline][CrewAI] Starting crew.kickoff() for clip selection.", flush=True)
+        send_debug_to_n8n(
+            build_event_payload(
+                "crewai_clip_selection_started",
+                data={
+                    "segment_count": len(transcript_payload),
+                    "output_count": output_count,
+                    "clip_length_min": clip_length_min,
+                    "clip_length_max": clip_length_max,
+                },
+            )
         )
+        try:
+            crew.kickoff(inputs=kickoff_inputs)
+        except TypeError:
+            crew.kickoff()
+        print("[pipeline][CrewAI] crew.kickoff() completed for clip selection.", flush=True)
         clip_task = crew.tasks[1]
         output_model = getattr(clip_task.output, "pydantic", None)
         if not output_model:
@@ -179,6 +207,12 @@ def select_clip_candidates_with_crewai(
         clips = output_model.clips[:output_count]
         if not clips:
             raise ValueError("Clip selector returned no clips.")
+        send_debug_to_n8n(
+            build_event_payload(
+                "crewai_clip_selection_completed",
+                data={"clip_count": len(clips)},
+            )
+        )
         return normalize_clip_candidates(clips, clip_length_min, clip_length_max)
     except Exception as exc:
         print(f"[pipeline] CrewAI clip selection failed, falling back to transcript heuristics: {exc}")

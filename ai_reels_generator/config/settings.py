@@ -64,8 +64,11 @@ def get_settings() -> Settings:
         google_service_account_file=os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", ""),
         google_service_account_json=os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", ""),
         debug_webhook_url=os.getenv(
+            "N8N_DEBUG_WEBHOOK_URL",
+            os.getenv(
             "N8N_WEBHOOK_URL",
-            os.getenv("DEBUG_WEBHOOK_URL", "https://desto374.app.n8n.cloud/webhook/auto-debug"),
+                os.getenv("DEBUG_WEBHOOK_URL", "https://desto374.app.n8n.cloud/webhook/auto-debug"),
+            ),
         ),
         job_stall_seconds=int(os.getenv("JOB_STALL_SECONDS", "150")),
         input_video_path=Path(os.getenv("INPUT_VIDEO_PATH", "input_videos/source.mp4")),
